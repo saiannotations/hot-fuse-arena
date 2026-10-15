@@ -1,0 +1,16 @@
+# Hot Fuse Arena — Cloudflare Worker config.
+name = "hot-fuse-arena"
+main = "worker/index.js"
+compatibility_date = "2026-10-01"
+
+[durable_objects]
+bindings = [{ name = "GAME_ROOMS", class_name = "GameRoom" }]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRoom"]
+
+# The Three.js client is served as static assets by the same Worker.
+[assets]
+directory = "./client"
+binding = "ASSETS"
