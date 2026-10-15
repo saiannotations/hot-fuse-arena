@@ -45,6 +45,12 @@ addEventListener('keyup', (e) => {
   keys[k] = false;
   keysDirty = true;
 });
+// If the window loses focus mid-keypress, the keyup never fires —
+// clear everything so the player doesn't run into a wall forever.
+addEventListener('blur', () => {
+  keys = { up: false, down: false, left: false, right: false };
+  keysDirty = true;
+});
 
 function send(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
