@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hot Fuse Arena — 3D multiplayer hot-potato</title>
+<style>
+  :root { --accent: #ffb300; --bg: #0b0e1a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: "Trebuchet MS", Verdana, sans-serif; color: #fff; }
+  #scene { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center;
+    justify-content: center; z-index: 10; pointer-events: none; }
+  .panel { pointer-events: auto; background: rgba(10, 14, 30, 0.88);
+    border: 2px solid rgba(255, 179, 0, 0.45); border-radius: 16px;
+    padding: 28px 32px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,.6);
+    max-width: min(92vw, 480px); }
+  .hidden { display: none !important; }
+
+  h1.logo { font-size: 44px; letter-spacing: 1px; margin-bottom: 4px;
+    color: var(--accent); text-shadow: 0 0 24px rgba(255,179,0,.5); }
+  .tagline { opacity: .75; margin-bottom: 20px; font-size: 14px; }
+
+  input[type=text] { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
+    border: 1px solid #445; background: #141a30; color: #fff; margin-bottom: 10px; }
+  .row { display: flex; gap: 10px; }
+  .row input { margin-bottom: 0; }
+
+  button { cursor: pointer; border: none; border-radius: 10px; padding: 12px 22px;
+    font-size: 16px; font-weight: bold; color: #1a1200;
+    background: linear-gradient(180deg, #ffd54f, var(--accent)); margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+  button.ghost { background: #232b4a; color: #cdd6ff; }
+  button:disabled { opacity: .45; cursor: default; }
+
+  #roomCode { font-size: 40px; letter-spacing: 8px; color: var(--accent); margin: 8px 0; }
+  #playerList { list-style: none; margin: 12px 0; max-height: 180px; overflow-y: auto;
+    text-align: left; }
+  #playerList li { padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,.06);
+    margin-bottom: 6px; font-size: 15px; }
+  #playerList li.me { outline: 1px solid var(--accent); }
+
+  /* HUD */
+  #hud { position: fixed; top: 0; left: 0; right: 0; z-index: 5; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; padding-top: 12px; }
+  #fuseWrap { width: min(60vw, 420px); height: 18px; border-radius: 9px;
+    background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.25); overflow: hidden; }
+  #fuseBar { height: 100%; width: 100%; border-radius: 9px;
+    background: linear-gradient(90deg, #ff5252, #ffb300); transition: width .1s linear; }
+  #hudRow { display: flex; gap: 18px; margin-top: 8px; font-size: 14px;
+    text-shadow: 0 1px 4px #000; }
+  #bombWarn { margin-top: 6px; font-size: 20px; font-weight: bold; color: #ff5252;
+    text-shadow: 0 0 12px rgba(255,82,82,.8); animation: pulse .5s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+
+  /* Chat */
+  #chat { position: fixed; left: 12px; bottom: 12px; width: 300px; z-index: 6;
+    display: flex; flex-direction: column; gap: 6px; }
+  #chatLog { max-height: 160px; overflow-y: auto; font-size: 13px;
+    background: rgba(0,0,0,.45); border-radius: 10px; padding: 8px; }
+  #chatLog div { margin-bottom: 3px; word-wrap: break-word; }
+  #chatLog .sys { color: #8fd3ff; font-style: italic; }
+  #chatForm { display: flex; gap: 6px; }
+  #chatForm input { margin: 0; padding: 8px; font-size: 13px; }
+  #chatForm button { margin: 0; padding: 8px 12px; font-size: 13px; }
+
+  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none;
+    z-index: 20; transition: opacity .45s ease-out; }
+
+  #result h2 { font-size: 34px; margin-bottom: 8px; color: var(--accent); }
+  .hint { font-size: 12px; opacity: .6; margin-top: 12px; }
+  #err { color: #ff8a80; min-height: 20px; font-size: 14px; margin-top: 8px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="scene"></div>
+
+<!-- HOME -->
+<div id="home" class="overlay">
+  <div class="panel">
+    <h1 class="logo">🔥 Hot Fuse Arena</h1>
+    <p class="tagline">3D multiplayer hot-potato. Don't hold the bomb.</p>
+    <input id="nameInput" type="text" maxlength="16" placeholder="Your name" />
+    <div class="row">
+      <input id="codeInput" type="text" maxlength="4" placeholder="CODE" style="text-transform:uppercase" />
+      <button id="joinBtn" class="ghost">Join</button>
+    </div>
+    <button id="createBtn" style="width:100%">Create room</button>
+    <button id="rejoinBtn" class="ghost hidden" style="width:100%">Rejoin last room</button>
+    <div id="err"></div>
+    <p class="hint">WASD / arrows to run. Tag someone to pass the bomb. Last one standing wins.</p>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="overlay hidden">
+  <div class="panel">
+    <h1 class="logo" style="font-size:28px">Room</h1>
+    <div id="roomCode">----</div>
+    <button id="copyBtn" class="ghost" style="margin-top:0">Copy invite link</button>
+    <ul id="playerList"></ul>
+    <div class="row">
+      <button id="addBotBtn" class="ghost" style="flex:1">+ Add bot</button>
+      <button id="startBtn" style="flex:2">Start game</button>
+    </div>
+    <p class="hint">Rooms auto-fill with bots up to 4 players when you start.</p>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="fuseWrap"><div id="fuseBar"></div></div>
+  <div id="hudRow"><span id="aliveCount"></span><span id="roundLabel"></span></div>
+  <div id="bombWarn" class="hidden">💣 YOU HAVE THE BOMB — RUN &amp; TAG SOMEONE!</div>
+</div>
+
+<!-- CHAT -->
+<div id="chat" class="hidden">
+  <div id="chatLog"></div>
+  <form id="chatForm"><input id="chatInput" type="text" maxlength="200" placeholder="Chat…" autocomplete="off" /><button type="submit">➤</button></form>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="overlay hidden">
+  <div class="panel">
+    <h2 id="resultTitle">👑 Winner!</h2>
+    <p id="resultSub"></p>
+    <button id="rematchBtn" style="width:100%">Rematch</button>
+    <button id="lobbyBtn" class="ghost" style="width:100%">Back to lobby</button>
+  </div>
+</div>
+
+<div id="flash"></div>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
