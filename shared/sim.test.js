@@ -181,6 +181,20 @@ describe('bots', () => {
     const { dx } = botSteer(m, bot);
     assert.ok(dx < 0, `bot near right wall should steer left, dx=${dx}`);
   });
+
+  it('cornered bots slide along walls instead of into them', () => {
+    const m = arena();
+    const bot = m.players.get('bot');
+    const h = m.players.get('h');
+    bot.x = ARENA_HALF - 1; bot.z = 0; // against the right wall
+    h.x = 9; h.z = 0; // holder to the left: flee drives straight into the wall
+    dealBomb(m, 'h');
+    const { dx, dz } = botSteer(m, bot);
+    assert.ok(
+      Math.abs(dz) > Math.abs(dx),
+      `bot should turn along the wall, dx=${dx}, dz=${dz}`
+    );
+  });
 });
 
 describe('snapshot', () => {

@@ -45,6 +45,12 @@ addEventListener('keyup', (e) => {
   keys[k] = false;
   keysDirty = true;
 });
+// If the window loses focus mid-keypress, the keyup never fires —
+// clear everything so the player doesn't run into a wall forever.
+addEventListener('blur', () => {
+  keys = { up: false, down: false, left: false, right: false };
+  keysDirty = true;
+});
 
 function send(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
@@ -108,6 +114,8 @@ function onSnapshot(snap) {
   if (snap.phase === 'LOBBY') {
     ui.renderLobby(roomCode, snap.players, playerId);
   } else if (snap.phase === 'PLAYING') {
+    // A new match started: drop any crown left over from the previous winner.
+    playerMgr.clearWinner();
     ui.enterGame();
     ui.renderHUD(snap, playerId);
   } else if (snap.phase === 'MATCH_END') {

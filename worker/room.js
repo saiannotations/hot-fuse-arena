@@ -120,6 +120,8 @@ export class GameRoom {
       p.connected = true;
       ws.serializeAttachment({ playerId: p.id, name: p.name });
       ws.send(JSON.stringify({ t: 'welcome', playerId: p.id, rejoin: true }));
+      // The loop may have stopped while everyone was gone; resume it.
+      if (this.match.phase === 'PLAYING') this.startLoop();
       this.broadcastState();
       return;
     }
@@ -189,7 +191,9 @@ export class GameRoom {
   }
 
   anyConnected() {
-    return [...this.match.players.values()].some((p) => p.connected);
+    // Only connected *humans* keep the room alive. Bots alone must not
+    // burn Durable Object resources on a room nobody is watching.
+    return [...this.match.players.values()].some((p) => p.connected && !p.isBot);
   }
 
   // --- Game loop ------------------------------------------------------------
