@@ -250,13 +250,41 @@ export function botSteer(match, bot) {
   let dx = tx - bot.x;
   let dz = tz - bot.z;
 
-  // Wall avoidance: push back toward the middle near the edges.
-  const margin = 5;
-  const edge = ARENA_HALF - margin;
+  // Wall handling: a gentle push back toward the middle, plus "sliding" —
+  // when close to a wall and moving into it, redirect along the wall so
+  // fleeing bots escape *along* walls instead of pinning themselves to them.
+  const H = ARENA_HALF;
+  const pushZone = 5;
+  const slideZone = 4;
+  const edge = H - pushZone;
   if (bot.x > edge) dx -= (bot.x - edge) * 0.9;
   if (bot.x < -edge) dx += (-edge - bot.x) * 0.9;
   if (bot.z > edge) dz -= (bot.z - edge) * 0.9;
   if (bot.z < -edge) dz += (-edge - bot.z) * 0.9;
+  const slide = (pos, dir, sign) => {
+    // pos: distance coordinate, dir: velocity component into the wall.
+    // Returns [keptIntoWall, addedAlongWall].
+    const w = Math.min(1, (Math.abs(pos) - (H - slideZone)) / slideZone);
+    if (w <= 0) return [dir, 0];
+    return [dir * (1 - 0.85 * w), Math.abs(dir) * 1.0 * w * sign];
+  };
+  let s;
+  if (bot.x > H - slideZone && dx > 0) {
+    s = slide(bot.x, dx, dz >= 0 ? 1 : -1);
+    dz += s[1]; dx = s[0];
+  }
+  if (bot.x < -(H - slideZone) && dx < 0) {
+    s = slide(bot.x, dx, dz >= 0 ? 1 : -1);
+    dz += s[1]; dx = s[0];
+  }
+  if (bot.z > H - slideZone && dz > 0) {
+    s = slide(bot.z, dz, dx >= 0 ? 1 : -1);
+    dx += s[1]; dz = s[0];
+  }
+  if (bot.z < -(H - slideZone) && dz < 0) {
+    s = slide(bot.z, dz, dx >= 0 ? 1 : -1);
+    dx += s[1]; dz = s[0];
+  }
 
   // A little wobble so bots feel alive and humans can juke them.
   const wobble = Math.sin(match.time * 2.3 + bot.noisePhase);
