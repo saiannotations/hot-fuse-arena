@@ -1,1 +1,1 @@
-{"description":"3D multiplayer hot-potato bomb game — Three.js + Cloudflare Workers/Durable Objects","license":"MIT","name":"hot-fuse-arena","scripts":{"deploy":"npx wrangler deploy","dev":"npx wrangler dev","test":"node --test shared/"},"type":"module","version":"0.1.0"}
+{"description":"3D multiplayer hot-potato bomb game — Three.js + Cloudflare Workers/Durable Objects","license":"MIT","name":"hot-fuse-arena","scripts":{"deploy":"npx wrangler deploy","dev":"npx wrangler dev","test":"node --test shared/sim.test.js"},"type":"module","version":"0.1.0"}
